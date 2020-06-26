@@ -1,0 +1,38 @@
+{
+	"name": "@xutl/version",
+	"version": "1.0.3",
+	"description": "Package Version Manipulation",
+	"main": "index.js",
+	"scripts": {
+		"prepublishOnly": "tsc && chmod 0755 index.js"
+	},
+	"bin": {
+		"xutlversion": "./index.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/xutl-es/version.git"
+	},
+	"keywords": [
+		"XtremelyUsefulToolLibraries",
+		"Package",
+		"Version"
+	],
+	"author": "XUTL <dev@xutl.es>",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/xutl-es/version/issues"
+	},
+	"homepage": "https://xutl.es",
+	"devDependencies": {
+		"@types/node": "^14.0.14",
+		"@types/semver": "^7.3.1",
+		"typescript": "^3.9.5"
+	},
+	"dependencies": {
+		"@xutl/aim": "^1.0.0",
+		"@xutl/istream": "^1.0.0",
+		"@xutl/json": "^1.0.0",
+		"semver": "^7.3.2"
+	}
+}
