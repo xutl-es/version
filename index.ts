@@ -5,48 +5,76 @@ import semver from 'semver';
 import aim from '@xutl/aim';
 import { strings } from '@xutl/istream';
 import JSON from '@xutl/json';
+import { resolve } from 'path';
+import { statSync } from 'fs';
 
 if ((module.id = '.')) {
-	if (process.argv.length < 3 || process.argv.length > 4) {
-		console.error('xutlversion <path/to/package.json> [ none | patch | minor | major ]');
-		process.exit(1);
-	}
-	const registry = require('child_process').execSync('npm config get registry').toString('utf-8').trim();
-	process.argv[3] = process.argv[3] || 'none';
-	const MODES = ['none', 'patch', 'minor', 'major'];
-	if (!MODES.includes(process.argv[3])) throw new Error(`invalid mode: ${process.argv[3]} (${MODES.join(' | ')})`);
-	(async function main(registry: string, mode: Mode, file: string) {
-		const pkg = (await JSON.read(file)) as Package;
-		const { localChanged, remoteCurrent } = await bump(mode, pkg, registry);
-		if (localChanged) {
-			await JSON.write(file, pkg, { whitespace: '\t' });
-			console.log(`${pkg.name} set to ${pkg.version} (${!remoteCurrent ? 'published' : 'to publish'})`);
-		} else {
-			console.log(`${pkg.name} is at ${pkg.version} (${!remoteCurrent ? 'published' : 'to publish'})`);
-		}
-	})(registry, process.argv[3] as Mode, process.argv[2] as string).catch((e) => {
+	const MODES = ['patch', 'minor', 'major'];
+	if (process.argv.length < 3 || process.argv.length > 4) bail(1);
+	const base = resolve(process.argv[2]);
+	const mode = (process.argv[3] || undefined) as Mode | undefined;
+
+	if (mode && !MODES.includes(mode)) bail(2);
+	if (!statSync(base).isDirectory()) bail(3);
+	if (!statSync(`${base}/package.json`).isFile()) bail(4);
+
+	main(base, mode).catch((e) => {
 		console.error(e);
-		process.exit(2);
+		bail(5);
 	});
+
+	async function main(pkgdir: string, mode?: Mode) {
+		const { execSync } = require('child_process');
+		const pre = process.cwd();
+		try {
+			process.chdir(pkgdir);
+			const registry = execSync('npm config get registry').toString('utf-8').trim();
+			const commits = execSync('git log --pretty=format:"%H"')
+				.toString('utf-8')
+				.split(/\r?\n/)
+				.map((s: string) => s.trim())
+				.filter((s: string) => !!s);
+
+			const packageJSON = (await JSON.read(`./package.json`)) as Package;
+			const original = packageJSON.version;
+			const version = (packageJSON.version = await getVersion(packageJSON.name, registry));
+
+			console.error(`@latest = ${version}`);
+			const relh = execSync(`git rev-list -n 1 v${version}`).toString('utf-8').trim();
+			const res = commits.indexOf(relh);
+			const chg = res < 0 ? Number.POSITIVE_INFINITY : res;
+
+			mode = mode ?? chg ? 'patch' : undefined;
+			if (bump(packageJSON, chg ? mode : undefined)) {
+				console.log(`${packageJSON.name} set to ${packageJSON.version} (${!chg ? 'published' : 'to publish'})`);
+			} else {
+				console.log(`${packageJSON.name} is at ${packageJSON.version} (${!chg ? 'published' : 'to publish'})`);
+			}
+			if (original !== packageJSON.version)
+				await JSON.write(`${pkgdir}/package.json`, packageJSON, { whitespace: '\t' });
+		} finally {
+			process.chdir(pre);
+		}
+	}
+	function bail(code: number = 1) {
+		console.error(`xutlversion <path/to/package/> [ ${MODES.join(' | ')} ]`);
+		process.exit(code);
+	}
 }
 
-export type Mode = 'none' | 'patch' | 'minor' | 'major';
+export type Mode = 'patch' | 'minor' | 'major';
 export interface Package {
 	name: string;
 	version: string;
 	[name: string]: any;
 }
 
-export async function bump(mode: Mode, packageJSON: Package, registry?: string) {
-	const { version: original } = packageJSON;
-	const version = await getVersion(packageJSON.name, registry);
-	const next = mode !== 'none' ? semver.inc(version, mode) : version;
+export async function bump(packageJSON: Package, mode?: Mode) {
+	const version = packageJSON.version;
+	const next = mode ? semver.inc(version, mode) : version;
 	if (!next) throw new Error(`failed to increment ${version}`);
 	packageJSON.version = next;
-	return {
-		localChanged: original !== next,
-		remoteCurrent: version !== next,
-	};
+	return version !== next;
 }
 
 export function getVersion(packageName: string, registry: string = 'https://registry.npmjs.org/'): Promise<string> {

@@ -1,6 +1,6 @@
 {
 	"name": "@xutl/version",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "Package Version Manipulation",
 	"main": "index.js",
 	"scripts": {
