@@ -40,8 +40,11 @@ if ((module.id = '.')) {
 			const version = (packageJSON.version = await getVersion(packageJSON.name, registry));
 
 			console.error(`@latest = ${version}`);
-			const relh = execSync(`git rev-list -n 1 v${version}`).toString('utf-8').trim();
-			const res = commits.indexOf(relh);
+			let res = -1;
+			try {
+				const relh = execSync(`git rev-list -n 1 v${version}`).toString('utf-8').trim();
+				res = commits.indexOf(relh);
+			} catch (ex) {}
 			const chg = res < 0 ? Number.POSITIVE_INFINITY : res;
 
 			mode = mode ?? chg ? 'patch' : undefined;
