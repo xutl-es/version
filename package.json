@@ -4,6 +4,7 @@
 	"description": "Package Version Manipulation",
 	"main": "index.js",
 	"scripts": {
+		"test": "echo OK",
 		"prepublishOnly": "tsc && chmod 0755 index.js"
 	},
 	"bin": {
