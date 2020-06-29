@@ -5,7 +5,8 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "echo OK",
-		"prepublishOnly": "tsc && chmod 0755 index.js"
+		"build": "tsc && chmod 0755 index.js",
+		"prepublishOnly": "npm run build"
 	},
 	"bin": {
 		"xutlversion": "./index.js"
